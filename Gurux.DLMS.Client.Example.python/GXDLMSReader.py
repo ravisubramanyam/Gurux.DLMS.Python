@@ -429,6 +429,28 @@ class GXDLMSReader:
         data = self.client.write(item, attributeIndex)
         self.readDLMSPacket(data)
 
+    def setValue(self, item, attributeIndex, value, typeName=None):
+        targetType = item.getDataType(attributeIndex)
+        if typeName:
+            try:
+                targetType = DataType[typeName.upper()]
+            except KeyError:
+                raise ValueError("Invalid data type: " + typeName)
+        elif targetType == DataType.NONE:
+            targetType = item.getUIDataType(attributeIndex)
+        if isinstance(value, str) and value.startswith("0x"):
+            value = value[2:]
+        if targetType != DataType.NONE:
+            value = GXDLMSConverter.changeType(value, targetType)
+            item.setDataType(attributeIndex, targetType)
+        else:
+            try:
+                value = int(value)
+            except Exception:
+                pass
+        self.client.updateValue(item, attributeIndex, value)
+        self.write(item, attributeIndex)
+
     def readRowsByEntry(self, pg, index, count):
         data = self.client.readRowsByEntry(pg, index, count)
         reply = GXReplyData()

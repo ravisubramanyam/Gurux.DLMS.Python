@@ -55,6 +55,8 @@ class GXSettings:
         self.client = GXDLMSSecureClient2(True)
         #  Objects to read.
         self.readObjects = []
+        #  Objects to write.
+        self.setObjects = []
         self.outputFile = None
         # Client and server certificates are exported from the meter.
         self.exportSecuritySetupLN = None
@@ -103,6 +105,9 @@ class GXSettings:
         print(" -t [Error, Warning, Info, Verbose] Trace messages.")
         print(
             ' -g "0.0.1.0.0.255:1; 0.0.1.0.0.255:2" Get selected object(s) with given attribute index.'
+        )
+        print(
+            ' -e "0.0.1.0.0.255:2:10" or -e "0.0.1.0.0.255:2:OCTET_STRING:010203" Set selected object(s) with given attribute index and value.'
         )
         print(
             " -C Security Level. (None, Authentication, Encrypted, AuthenticationEncryption)"
@@ -183,7 +188,7 @@ class GXSettings:
 
     def getParameters(self, args):
         parameters = GXSettings.__getParameters(
-            args, "h:p:c:s:r:i:It:a:p:P:g:S:n:C:v:o:T:A:B:D:d:l:W:w:f:L:M:N:E:V:m:q:k:"
+            args, "h:p:c:s:r:i:It:a:p:P:g:e:S:n:C:v:o:T:A:B:D:d:l:W:w:f:L:M:N:E:V:m:q:k:"
         )
         modeEDefaultValues = True
         for it in parameters:
@@ -282,6 +287,19 @@ class GXSettings:
                     if len(tmp) != 2:
                         raise ValueError("Invalid Logical name or attribute index.")
                     self.readObjects.append((tmp[0].strip(), int(tmp[1].strip())))
+            elif it.tag == "e":
+                #  Set selected objects.
+                for o in it.value.split(";"):
+                    tmp = o.split(":")
+                    if len(tmp) < 3:
+                        raise ValueError(
+                            "Invalid Logical name, attribute index or value."
+                        )
+                    ln = tmp[0].strip()
+                    attributeIndex = int(tmp[1].strip())
+                    value = tmp[2].strip()
+                    type_ = tmp[3].strip() if len(tmp) > 3 else None
+                    self.setObjects.append((ln, attributeIndex, value, type_))
             elif it.tag == "S":  # Serial Port
                 self.media = GXSerial(None)
                 tmp = it.value.split(":")
@@ -467,6 +485,10 @@ class GXSettings:
                     raise ValueError("Missing mandatory trace option.\n")
                 if it.tag == "g":
                     raise ValueError("Missing mandatory OBIS code option.")
+                if it.tag == "e":
+                    raise ValueError(
+                        "Missing mandatory OBIS code, attribute index or value option."
+                    )
                 if it.tag == "C":
                     raise ValueError("Missing mandatory Ciphering option.")
                 if it.tag == "v":
