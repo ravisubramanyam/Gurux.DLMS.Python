@@ -69,7 +69,6 @@ from gurux_dlms.objects import (
 from gurux_dlms import GXDateTime
 from gurux_dlms.enums import DateTimeSkips
 
-from gurux_net import GXNet
 from gurux_serial import GXSerial
 from gurux_dlms.ecdsa.enums.Ecc import Ecc
 from gurux_dlms.objects.enums.CertificateType import CertificateType
@@ -174,8 +173,9 @@ class GXDLMSReader:
         reply.error = 0
         eop = 0x7E
         # In network connection terminator is not used.
-        if self.client.interfaceType == InterfaceType.WRAPPER and isinstance(
-            self.media, GXNet
+        if (
+            self.client.interfaceType == InterfaceType.WRAPPER
+            and not isinstance(self.media, GXSerial)
         ):
             eop = None
         p = ReceiveParameters()

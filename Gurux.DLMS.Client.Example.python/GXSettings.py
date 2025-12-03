@@ -38,11 +38,10 @@ from gurux_dlms.GXByteBuffer import GXByteBuffer
 from gurux_dlms.objects import GXDLMSObject
 from gurux_common.enums import TraceLevel
 from gurux_common.io import Parity, StopBits, BaudRate
-from gurux_net.enums import NetworkType
-from gurux_net import GXNet
 from gurux_serial.GXSerial import GXSerial
 from GXCmdParameter import GXCmdParameter
 from GXDLMSSecureClient2 import GXDLMSSecureClient2
+from GXMqttMedia import GXMqttMedia
 
 
 class GXSettings:
@@ -61,6 +60,11 @@ class GXSettings:
         self.exportSecuritySetupLN = None
         # Generate new client and server certificates and import them to the server.
         self.generateSecuritySetupLN = None
+        self.mqttPort = 1883
+        self.mqttRequestTopic = "gurux/dlms/request"
+        self.mqttResponseTopic = "gurux/dlms/response"
+        self.mqttClientId = "gxdlms-client"
+        self.mqttQos = 1
 
     #
     # Show help.
@@ -73,6 +77,13 @@ class GXSettings:
         )
         print(" -h \t host name or IP address.")
         print(" -p \t port number or name (Example: 1000).")
+        print(" -m \t MQTT publish topic for DLMS requests (default: gurux/dlms/request).")
+        print(
+            " -q \t MQTT subscribe topic for DLMS replies (default: gurux/dlms/response)."
+        )
+        print(
+            " -k \t MQTT client ID (default: gxdlms-client). Each client must be unique."
+        )
         print(" -S \t serial port. (Example: COM1 or COM1:9600:8None1)")
         print(
             " -a \t Authentication (None, Low, High, HighMd5, HighSha1, HighGMac, HighSha256)."
@@ -126,9 +137,9 @@ class GXSettings:
             " -L \t Manufacturer ID (Flag ID) is used to use manufacturer depending functionality. -L LGZ"
         )
         print("Example:")
-        print("Read LG device using TCP/IP connection.")
+        print("Read LG device using MQTT connection.")
         print(
-            "GuruxDlmsSample -r SN -c 16 -s 1 -h [Meter IP Address] -p [Meter Port No]"
+            "GuruxDlmsSample -r SN -c 16 -s 1 -h [MQTT host] -p [MQTT port]"
         )
         print("Read LG device using serial port connection.")
         print("GuruxDlmsSample -r SN -c 16 -s 1 -sp COM1 -i")
@@ -172,7 +183,7 @@ class GXSettings:
 
     def getParameters(self, args):
         parameters = GXSettings.__getParameters(
-            args, "h:p:c:s:r:i:It:a:p:P:g:S:n:C:v:o:T:A:B:D:d:l:W:w:f:L:M:N:E:V:"
+            args, "h:p:c:s:r:i:It:a:p:P:g:S:n:C:v:o:T:A:B:D:d:l:W:w:f:L:M:N:E:V:m:q:k:"
         )
         modeEDefaultValues = True
         for it in parameters:
@@ -184,9 +195,16 @@ class GXSettings:
                 else:
                     raise ValueError("Invalid reference option.")
             elif it.tag == "h":
-                #  Host address.
+                #  MQTT host address.
                 if not self.media:
-                    self.media = GXNet(NetworkType.TCP, it.value, 0)
+                    self.media = GXMqttMedia(
+                        it.value,
+                        self.mqttPort,
+                        self.mqttRequestTopic,
+                        self.mqttResponseTopic,
+                        qos=self.mqttQos,
+                        clientId=self.mqttClientId,
+                    )
                 else:
                     self.media.hostName = it.value
             elif it.tag == "t":
@@ -207,10 +225,18 @@ class GXSettings:
                     )
             elif it.tag == "p":
                 #  Port.
+                self.mqttPort = int(it.value)
                 if not self.media:
-                    self.media = GXNet(NetworkType.TCP, None, int(it.value))
+                    self.media = GXMqttMedia(
+                        None,
+                        self.mqttPort,
+                        self.mqttRequestTopic,
+                        self.mqttResponseTopic,
+                        qos=self.mqttQos,
+                        clientId=self.mqttClientId,
+                    )
                 else:
-                    self.media.port = int(it.value)
+                    self.media.port = self.mqttPort
             elif it.tag == "P":
                 #  Password
                 if it.value.startswith("0x"):
@@ -410,6 +436,18 @@ class GXSettings:
                 ) = int(it.value)
             elif it.tag == "L":
                 self.client.manufacturerId = it.value
+            elif it.tag == "m":
+                self.mqttRequestTopic = it.value
+                if isinstance(self.media, GXMqttMedia):
+                    self.media.publishTopic = it.value
+            elif it.tag == "q":
+                self.mqttResponseTopic = it.value
+                if isinstance(self.media, GXMqttMedia):
+                    self.media.subscribeTopic = it.value
+            elif it.tag == "k":
+                self.mqttClientId = it.value
+                if isinstance(self.media, GXMqttMedia):
+                    self.media.clientId = it.value
             elif it.tag == "?":
                 if it.tag == "c":
                     raise ValueError("Missing mandatory client option.")
