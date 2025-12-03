@@ -118,7 +118,7 @@ class sampleclient:
             # Generate new client and server certificates and import them to the server.
             elif settings.generateSecuritySetupLN:
                 reader.generateCertificates(settings.generateSecuritySetupLN)
-            elif settings.readObjects:
+            elif settings.readObjects or settings.setObjects:
                 read = False
                 reader.initializeConnection()
                 if settings.outputFile and os.path.exists(settings.outputFile):
@@ -137,6 +137,11 @@ class sampleclient:
                         raise Exception("Unknown logical name:" + k)
                     val = reader.read(obj, v)
                     reader.showValue(v, val)
+                for k, index, value, typeName in settings.setObjects:
+                    obj = settings.client.objects.findByLN(ObjectType.NONE, k)
+                    if obj is None:
+                        raise Exception("Unknown logical name:" + k)
+                    reader.setValue(obj, index, value, typeName)
                 if settings.outputFile:
                     settings.client.objects.save(settings.outputFile)
             else:
