@@ -36,11 +36,11 @@ import sys
 import traceback
 import gurux_dlms
 from gurux_serial import GXSerial
-from gurux_net import GXNet
 from gurux_dlms.enums import ObjectType
 from gurux_dlms.objects.GXDLMSObjectCollection import GXDLMSObjectCollection
 from GXSettings import GXSettings
 from GXDLMSReader import GXDLMSReader
+from GXMqttMedia import GXMqttMedia
 import locale
 from gurux_dlms import (
     GXDLMSException,
@@ -66,21 +66,28 @@ class sampleclient:
         try:
             if sys.version_info >= (3, 7):
                 print("gurux_dlms version: " + version("gurux_dlms"))
-                print("gurux_net version: " + version("gurux_net"))
                 print("gurux_serial version: " + version("gurux_serial"))
+                try:
+                    print("paho-mqtt version: " + version("paho-mqtt"))
+                except Exception:
+                    # Optional dependency for MQTT transport.
+                    pass
             else:
                 print(
                     "gurux_dlms version: "
                     + pkg_resources.get_distribution("gurux_dlms").version
                 )
                 print(
-                    "gurux_net version: "
-                    + pkg_resources.get_distribution("gurux_net").version
-                )
-                print(
                     "gurux_serial version: "
                     + pkg_resources.get_distribution("gurux_serial").version
                 )
+                try:
+                    print(
+                        "paho-mqtt version: "
+                        + pkg_resources.get_distribution("paho-mqtt").version
+                    )
+                except Exception:
+                    pass
         except Exception:
             # It's OK if this fails.
             print("pkg_resources not found")
@@ -95,7 +102,7 @@ class sampleclient:
                 return
             # //////////////////////////////////////
             #  Initialize connection settings.
-            if not isinstance(settings.media, (GXSerial, GXNet)):
+            if not isinstance(settings.media, (GXSerial, GXMqttMedia)):
                 raise Exception("Unknown media type.")
             # //////////////////////////////////////
             reader = GXDLMSReader(
